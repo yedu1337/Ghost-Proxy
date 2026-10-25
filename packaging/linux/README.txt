@@ -26,7 +26,8 @@ CONNECT YOUR BROWSER
    Port:       1080
 
    Firefox: Settings -> Network Settings -> Manual proxy configuration.
-   Chrome/Edge: use the system proxy settings, or launch the browser with
+   Select SOCKS v5 and enable "Proxy DNS when using SOCKS v5".
+   Chrome/Edge: close all browser windows, then launch the browser with
    --proxy-server="socks5://127.0.0.1:1080".
 
 CHANGE SETTINGS LATER

@@ -133,5 +133,5 @@ jobs:
             to verify the connection. See the README inside each package.
 
             These builds are not code-signed. Windows SmartScreen may ask you
-            to confirm before running the client.
+            to confirm before running the client or server.
           files: dist/*

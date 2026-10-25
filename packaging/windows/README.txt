@@ -22,8 +22,11 @@ CONNECT YOUR BROWSER
    Host:       127.0.0.1
    Port:       1080
 
-   Edge/Chrome use the Windows proxy settings. Firefox has its own:
-   Settings -> Network Settings -> Manual proxy configuration.
+   Firefox: Settings -> Network Settings -> Manual proxy configuration.
+   Select SOCKS v5 and enable "Proxy DNS when using SOCKS v5".
+   Chrome/Edge: close all browser windows, then start the browser with:
+      --proxy-server="socks5://127.0.0.1:1080"
+   The Windows Settings proxy page is for HTTP proxies, not SOCKS5.
 
 CHANGE SETTINGS LATER
    Close Ghost Proxy, then double-click "GhostProxy Settings.bat".

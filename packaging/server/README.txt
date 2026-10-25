@@ -18,9 +18,9 @@ Before you start:
 
    The archive extracts its files directly; there is no inner folder.
 
-   The installer asks for the public IP or domain. Press Enter to accept the
-   detected public IP. An email address is optional (Let's Encrypt expiry
-   notices).
+   On a first install, the installer asks for the public IP or domain. Press
+   Enter to accept the detected public IP. An email address is optional
+   (Let's Encrypt expiry notices).
 
    It installs the gateway as a systemd service, obtains and renews the
    certificate, and prints the invite text for your users.
@@ -37,8 +37,8 @@ From the extracted package folder:
    sudo ./install.sh --new-psk      # rotate the PSK after a leak
    sudo ./install.sh                # upgrade; keeps the PSK and settings
 
-The gateway listens on TCP 443. Port 80 is used only for certificate issuance
-and renewal, so keep both ports open.
+By default the gateway listens on TCP 443; use --port to choose another. Port
+80 is used only for certificate issuance and renewal, so keep both ports open.
 
 USING A DOMAIN
 If you have a domain, point its DNS A/AAAA record at the server and run:
@@ -51,9 +51,13 @@ WINDOWS SERVER (MANUAL)
    - Let's Encrypt certificates are easiest on the Linux installer.
    - For a self-signed certificate, send configs/server.crt to each user and
      have them enter its path in the client wizard.
-4. Forward TCP 443 on your router to this computer, and give users:
+4. Forward the chosen TCP port (443 by default) on your router to this
+   computer, and give users:
       Server address: your-public-ip-or-domain:443
       PSK:            the key printed by the wizard
+
+Windows may show a SmartScreen warning for the unsigned server binary. Choose
+"More info" and then "Run anyway".
 
 Use "GhostProxy Server Settings.bat" to change settings later.
 

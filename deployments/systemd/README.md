@@ -84,6 +84,7 @@ public IP address, so no domain is required. See the main
      --public-host 203.0.113.10 \
      --cert-file /etc/letsencrypt/live/203.0.113.10/fullchain.pem \
      --key-file /etc/letsencrypt/live/203.0.113.10/privkey.pem \
+     --fallback-address none \
      --non-interactive --force
    ```
 

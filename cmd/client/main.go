@@ -134,10 +134,10 @@ func run(args []string) error {
 	fmt.Println("Ghost Proxy is running.")
 	fmt.Println()
 	fmt.Printf("  SOCKS5 proxy: %s\n", cfg.ListenAddress)
-	fmt.Println("  In your browser or app, choose SOCKS5 host 127.0.0.1 and port 1080.")
+	fmt.Printf("  In your browser or app, choose SOCKS5 proxy %s.\n", cfg.ListenAddress)
 	fmt.Println("  Keep this window open. Press Ctrl+C to stop.")
 	fmt.Println()
-	fmt.Println("  To change the server address, PSK, or certificate, run GhostProxy Settings.")
+	fmt.Println("  To change these settings later, close this window and run the settings launcher.")
 	fmt.Println()
 
 	if err := server.Start(); err != nil {
@@ -175,7 +175,7 @@ func runClientCheck(ghostClient *client.Client, cfg config.Config, target string
 	httpClient := &http.Client{Transport: transport, Timeout: 25 * time.Second}
 	resp, err := httpClient.Get("http://" + target + "/")
 	if err != nil {
-		if hint := clientCheckHint(err); hint != "" {
+		if hint := clientCheckHint(err, cfg.ServerAddress); hint != "" {
 			return fmt.Errorf("connection check failed: %w\n\n%s", err, hint)
 		}
 		return fmt.Errorf("connection check failed: %w", err)
@@ -188,8 +188,12 @@ func runClientCheck(ghostClient *client.Client, cfg config.Config, target string
 	return nil
 }
 
-func clientCheckHint(err error) string {
+func clientCheckHint(err error, serverAddress string) string {
 	message := strings.ToLower(err.Error())
+	port := "443"
+	if _, configuredPort, splitErr := net.SplitHostPort(serverAddress); splitErr == nil && configuredPort != "" {
+		port = configuredPort
+	}
 	switch {
 	case strings.Contains(message, "authenticate"):
 		return "The PSK does not match the gateway. Ask the operator for the current key."
@@ -198,9 +202,9 @@ func clientCheckHint(err error) string {
 	case strings.Contains(message, "no such host"):
 		return "The server address could not be resolved. Check the spelling and your internet connection."
 	case strings.Contains(message, "timeout") || strings.Contains(message, "deadline exceeded"):
-		return "The gateway did not respond in time. Check the server address and that TCP 443 is open in the firewall and cloud security group."
+		return fmt.Sprintf("The gateway did not respond in time. Check the server address and that TCP %s is open in the firewall and cloud security group.", port)
 	case strings.Contains(message, "connect to ghost server") || strings.Contains(message, "connection refused") || strings.Contains(message, "connection reset"):
-		return "The gateway could not be reached. Check the server address and that TCP 443 is open in the firewall and cloud security group."
+		return fmt.Sprintf("The gateway could not be reached. Check the server address and that TCP %s is open in the firewall and cloud security group.", port)
 	case strings.Contains(message, "destination") || strings.Contains(message, "not allowed"):
 		return "The gateway refused the test destination. If it has an allowed_destinations list, use --check-target with an allowed HTTP host:port."
 	default:

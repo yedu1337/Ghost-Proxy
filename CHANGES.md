@@ -1,11 +1,22 @@
 # Ghost Proxy change summary
 
-## Documentation fix (2026-10-26)
+## v0.2.1 documentation and check fixes (2026-10-26)
 
 - Corrected the Linux server package instructions. The archive extracts its
   files directly, so the docs now say to extract into an empty folder and run
   `sudo ./install.sh` there, with no `cd` into a non-existent directory.
-- Added the direct server package download command to the README.
+- Added the direct server package download command and checksum verification
+  steps to the README.
+- Corrected browser setup: the Windows Settings proxy page is for HTTP proxies,
+  not SOCKS5. The docs now recommend Firefox's native SOCKS settings (with
+  remote DNS) or the Chrome/Edge `--proxy-server` launch option.
+- Documented the Windows SmartScreen warning for the unsigned server binary.
+- Clarified gateway logging: client IP addresses and connection times are
+  logged, and failed connection attempts include the requested address.
+- The client check now reports the actual configured gateway port in its
+  firewall hint. The startup message shows the configured SOCKS5 address and
+  points to the settings launcher.
+- Added a complete source-build local test and ignored its generated files.
 
 ## Operator bundle and connection check (2026-10-26)
 
@@ -22,9 +33,9 @@
   certificate, an existing certificate, or a self-signed certificate. It
   installs Certbot 5.4 or newer in a private virtual environment, creates a
   hardened systemd service, and enables daily certificate renewal. Reinstalls
-  keep the PSK, public port, fallback address, and destination rules, and keep
-  automatic renewal enabled. It picks a Python 3.10+ interpreter for Certbot
-  and adds Python 3.11 on Amazon Linux when needed.
+  keep the public host, PSK, public port, fallback address, and destination
+  rules, and keep automatic renewal enabled. It picks a Python 3.10+
+  interpreter for Certbot and adds Python 3.11 on Amazon Linux when needed.
 - Added automatic renewal plumbing: a filtered deploy hook and
   `ghost-proxy-certbot-renew.timer`. The hook only copies the certificate for
   this gateway, so renewing an unrelated certificate cannot replace it.

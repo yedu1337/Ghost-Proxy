@@ -53,11 +53,21 @@ func TestClientCheckHint(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := clientCheckHint(test.err)
+			got := clientCheckHint(test.err, "proxy.example.com:443")
 			if !strings.Contains(got, test.want) {
 				t.Fatalf("hint = %q, want it to contain %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestClientCheckHintUsesConfiguredPort(t *testing.T) {
+	hint := clientCheckHint(
+		errors.New("connect to Ghost server: dial tcp 203.0.113.10:8443: connect: connection refused"),
+		"203.0.113.10:8443",
+	)
+	if !strings.Contains(hint, "TCP 8443") {
+		t.Fatalf("hint = %q, want it to mention TCP 8443", hint)
 	}
 }
 

@@ -4,9 +4,14 @@ build/
 stage/
 dist/
 
-# Local TLS test credentials
+# Local binaries from the build instructions
+/ghost-proxy
+/ghost-proxy-server
+
+# Local TLS test credentials and configs
 configs/server.crt
 configs/server.key
+configs/*.local.yaml
 ghost-server
 ghost-client
 /client

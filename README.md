@@ -6,8 +6,8 @@ gateway forwards only the connections you request. It is designed for a
 trusted group of users who need a private exit point without a complicated
 control panel.
 
-- **Guided setup** — the client asks for the server address, certificate, and
-  key on first run. No YAML editing is required.
+- **Guided setup** — the client asks for the server address, a CA certificate
+  (if needed), and the PSK on first run. No YAML editing is required.
 - **Free trusted TLS** — the Linux installer can obtain a Let's Encrypt
   certificate for a **public IP address**, so you do not need to buy a domain.
 - **Automatic renewal** — Linux installations renew the certificate with a
@@ -77,11 +77,15 @@ browser or app to use the local SOCKS5 proxy:
 | Port | `1080` |
 
 - **Firefox:** Settings → Network Settings → Manual proxy configuration →
-  SOCKS Host `127.0.0.1`, Port `1080`, SOCKS v5.
-- **Chrome/Edge:** use the operating system proxy settings, or launch the
-  browser with `--proxy-server="socks5://127.0.0.1:1080"`.
-- **Windows:** Settings → Network & Internet → Proxy → Manual proxy setup →
-  SOCKS5 `127.0.0.1:1080`.
+  SOCKS Host `127.0.0.1`, Port `1080`, SOCKS v5, and enable
+  **Proxy DNS when using SOCKS v5**.
+- **Chrome/Edge:** close all browser windows, then launch the browser with
+  `--proxy-server="socks5://127.0.0.1:1080"`. The option applies to that
+  browser session. On Windows, add it to a desktop shortcut if you want to
+  keep it.
+- **Windows system proxy:** the Windows Settings proxy page is designed for
+  HTTP proxies, not SOCKS5. Use Firefox or the Chrome/Edge launch option
+  above instead.
 
 ### Change settings later
 
@@ -115,7 +119,8 @@ is:
    Certbot needs Python 3.10 or newer; on Amazon Linux the installer adds
    Python 3.11 automatically when the default Python is too old.
 2. **Open inbound TCP 80 and 443** in your cloud firewall/security group.
-   - Port 443 carries the gateway.
+   - Port 443 carries the gateway by default. If you use `--port`, allow that
+     port instead.
    - Port 80 is used by Let's Encrypt for issuance and renewal. Keep it open.
    - Keep SSH (usually port 22) open so you can log in.
 3. **Download and extract** the server package into its own folder, then run
@@ -275,11 +280,15 @@ can run the gateway for testing or a small private group:
    - Use an existing certificate and key if you have one.
    - A self-signed certificate is fine for testing, but each user must enter
      the provided `configs/server.crt` as the CA certificate in the client.
-4. Forward TCP 443 on your router to the computer, and keep the computer
-   running while users need access.
+4. Forward the chosen TCP port (443 by default) on your router to the
+   computer, and keep the computer running while users need access.
 
-Use `GhostProxy Server Settings.bat` to change settings later. For a public
-service, a Linux VPS with a trusted certificate is easier and more reliable.
+Windows may show a SmartScreen warning for the unsigned server binary. Choose
+**More info → Run anyway**. Use `GhostProxy Server Settings.bat` to change
+settings later.
+
+For a public service, a Linux VPS with a trusted certificate is easier and more
+reliable.
 
 ### Manual Linux systemd install (advanced)
 
@@ -370,8 +379,10 @@ to scanners. See [`docs/protocol.md`](docs/protocol.md) for the protocol and
   gateway, and there is no per-user revocation. Rotate the PSK if it leaks.
 - The PSK is the only access control, so send invites privately and never post
   them in a repository, chat room, or public issue.
-- The gateway does not log browsing destinations by default, but the VPS
-  provider and the destination services can still observe metadata.
+- The gateway logs client IP addresses, connection times, and the requested
+  address for failed connections. It does not keep a log of successfully
+  connected destinations. The VPS provider and destination services can still
+  observe metadata.
 - The client does not change system proxy settings or install a browser
   extension.
 - Traffic padding is not a guarantee against a determined traffic-analysis
@@ -387,14 +398,15 @@ to scanners. See [`docs/protocol.md`](docs/protocol.md) for the protocol and
 | --- | --- |
 | `The PSK does not match the gateway` | Copy the current PSK from the invite exactly. Ask the operator to reprint it with `--show-invite`. |
 | `The TLS certificate could not be verified` | Check the server address and TLS server name. For a self-signed gateway, enter the provided `server.crt` in the client wizard. |
-| `The gateway could not be reached` | Check the server address and that TCP 443 is open in the host firewall and cloud security group. Confirm the service is running. |
+| `The gateway could not be reached` | Check the server address and that the configured port (443 by default) is open in the host firewall and cloud security group. Confirm the service is running. |
 | `The gateway refused the test destination` | The gateway has an `allowed_destinations` list. Run `--check-target` with a permitted `host:port`. |
 | `no usable configuration found` | Run the client from a terminal or the packaged launcher so the first-run wizard can start. |
 
 ### The browser cannot reach sites
 
 - Confirm Ghost Proxy is still running and its window has no error.
-- Confirm the browser is set to SOCKS5 `127.0.0.1:1080`, not an HTTP proxy.
+- Confirm the browser is set to the client's SOCKS5 address (`127.0.0.1:1080`
+  by default), not an HTTP proxy.
 - Try the included connection check before changing browser settings.
 - Some applications ignore the system proxy; configure the SOCKS5 proxy inside
   that application.
@@ -410,8 +422,8 @@ sudo /opt/ghost-proxy/ghost-proxy-server --check \
 ```
 
 Common causes are a missing or unreadable private key, a certificate that does
-not cover `public_host`, an invalid PSK, or another service already using port
-443.
+not cover `public_host`, an invalid PSK, or another service already using the
+chosen port (443 by default).
 
 ### Certificate issuance fails
 
@@ -428,8 +440,8 @@ Only download them from the official Releases page.
 
 ## Build from source
 
-Requirements: a Go toolchain compatible with `go.mod`, plus OpenSSL for local
-test certificates.
+Requirements: a Go toolchain compatible with `go.mod`. OpenSSL is used by the
+local test example to generate a PSK and is not a runtime dependency.
 
 ```bash
 git clone https://github.com/yedukrishna012/Ghost-Proxy.git
@@ -444,22 +456,37 @@ go vet ./...
 
 ### Local test with a self-signed certificate
 
-```bash
-sh tests/gen-certs.sh
+In the first terminal, generate a PSK and start the gateway:
 
+```bash
 export GHOST_PSK=$(openssl rand -hex 32)
-./ghost-proxy-server --setup-only --self-signed \
-  --config configs/server.yaml --env-file ghost.env \
-  --public-host localhost --public-port 8443 --non-interactive
-./ghost-proxy-server --config configs/server.yaml --env-file ghost.env
+
+./ghost-proxy-server --setup-only \
+  --config configs/server.local.yaml --env-file ghost.env \
+  --public-host localhost --public-port 8443 \
+  --self-signed --fallback-address none --non-interactive
+./ghost-proxy-server --config configs/server.local.yaml --env-file ghost.env
 ```
 
-In another terminal, create a client configuration pointing at
-`localhost:8443` with `ca_file: configs/server.crt`, then run:
+In a second terminal, create a client configuration and test the tunnel:
 
 ```bash
-./ghost-proxy --check --config configs/client.yaml
+cat > configs/client.local.yaml <<'EOF'
+listen_address: "127.0.0.1:1080"
+server_address: "localhost:8443"
+server_name: "localhost"
+ca_file: "server.crt"
+log_level: "info"
+padding_enabled: true
+jitter_ms: 0
+EOF
+
+./ghost-proxy --check --config configs/client.local.yaml --env ghost.env
 ```
+
+`ca_file` is relative to `configs/client.local.yaml`, so it resolves to
+`configs/server.crt`. To run the client normally, use the same `--config` and
+`--env` flags, then set your browser to SOCKS5 `127.0.0.1:1080`.
 
 ### Cross-compilation and packages
 
@@ -468,7 +495,9 @@ The release workflow builds Windows and Linux packages from tags matching
 
 ```bash
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o GhostProxy.exe ./cmd/client
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o GhostProxy-Server.exe ./cmd/server
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ghost-proxy ./cmd/client
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ghost-proxy-server ./cmd/server
 ```
 
 See [`.github/workflows/release.yml`](.github/workflows/release.yml) for the
