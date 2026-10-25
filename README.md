@@ -97,6 +97,10 @@ The wizard remembers the previous answers. Press Enter to keep a value.
   **More info → Run anyway**.
 - Never share your PSK or `ghost.env`.
 - The client listens only on `127.0.0.1:1080` by default.
+- Each release includes `SHA256SUMS.txt`. Verifying a download is optional: on
+  Linux, run `sha256sum -c SHA256SUMS.txt` in the download folder. On Windows,
+  run `certutil -hashfile <file> SHA256` and compare the result with the
+  matching line.
 
 ## Run a gateway (operators)
 
