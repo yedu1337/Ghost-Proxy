@@ -243,3 +243,51 @@ func writeTestCertificate(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+func TestRunSetupRetriesBadCACertificateThenAccepts(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "configs", "client.yaml")
+	envPath := filepath.Join(dir, "ghost.env")
+	missingCA := filepath.Join(dir, "missing.pem")
+	invalidCA := filepath.Join(dir, "invalid.pem")
+	validCA := filepath.Join(dir, "provided-ca.pem")
+	if err := os.WriteFile(invalidCA, []byte("not a certificate"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeTestCertificate(t, validCA)
+	psk := strings.Repeat("12", 32)
+
+	t.Setenv("GHOST_PSK", "")
+	input := "proxy.example.com\n\n" + missingCA + "\n" + invalidCA + "\n" + validCA + "\n" + psk + "\n"
+	var out bytes.Buffer
+	if err := runSetup(cfgPath, envPath, newSetupUI(strings.NewReader(input), &out)); err != nil {
+		t.Fatalf("runSetup: %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "Could not read the CA certificate") {
+		t.Fatalf("expected missing-file warning, got:\n%s", output)
+	}
+	if !strings.Contains(output, "does not contain a valid PEM certificate") {
+		t.Fatalf("expected invalid-certificate warning, got:\n%s", output)
+	}
+
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.CAFile != "server.crt" {
+		t.Fatalf("ca file = %q, want server.crt", cfg.CAFile)
+	}
+	original, err := os.ReadFile(validCA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copied, err := os.ReadFile(filepath.Join(filepath.Dir(cfgPath), "server.crt"))
+	if err != nil {
+		t.Fatalf("read copied CA: %v", err)
+	}
+	if !bytes.Equal(copied, original) {
+		t.Fatal("copied CA does not match the valid source certificate")
+	}
+}

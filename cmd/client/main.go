@@ -2,13 +2,17 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/term"
 
@@ -36,7 +40,12 @@ func run(args []string) error {
 	envFlag := flags.String("env", "", "path to the ghost.env file")
 	setupFlag := flags.Bool("setup", false, "run the setup wizard, then start the client")
 	setupOnly := flags.Bool("setup-only", false, "run the setup wizard and exit")
+	checkFlag := flags.Bool("check", false, "verify the configuration and gateway connection, then exit")
+	checkTarget := flags.String("check-target", "example.com:80", "HTTP destination used by --check")
 	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 
@@ -112,6 +121,10 @@ func run(args []string) error {
 	ghostClient.PaddingEnabled = cfg.PaddingEnabled
 	ghostClient.JitterMS = cfg.JitterMS
 
+	if *checkFlag {
+		return runClientCheck(ghostClient, cfg, *checkTarget)
+	}
+
 	server := &socks5.Server{
 		Addr: cfg.ListenAddress,
 		Dial: ghostClient.Dial,
@@ -131,6 +144,68 @@ func run(args []string) error {
 		return fmt.Errorf("SOCKS5 server stopped: %w", err)
 	}
 	return nil
+}
+
+func runClientCheck(ghostClient *client.Client, cfg config.Config, target string) error {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		target = "example.com:80"
+	}
+	host, port, err := net.SplitHostPort(target)
+	if err != nil || host == "" || port == "" {
+		return fmt.Errorf("invalid --check-target %q: use host:port, for example example.com:80", target)
+	}
+
+	fmt.Println()
+	fmt.Println("Checking Ghost Proxy...")
+	fmt.Printf("  Server:      %s\n", cfg.ServerAddress)
+	fmt.Printf("  Server name: %s\n", cfg.ServerName)
+	fmt.Printf("  Test target: %s\n", target)
+	fmt.Println()
+
+	transport := &http.Transport{
+		DialContext: func(_ context.Context, _, address string) (net.Conn, error) {
+			return ghostClient.Dial(address)
+		},
+		DisableKeepAlives: true,
+		ForceAttemptHTTP2: false,
+	}
+	defer transport.CloseIdleConnections()
+
+	httpClient := &http.Client{Transport: transport, Timeout: 25 * time.Second}
+	resp, err := httpClient.Get("http://" + target + "/")
+	if err != nil {
+		if hint := clientCheckHint(err); hint != "" {
+			return fmt.Errorf("connection check failed: %w\n\n%s", err, hint)
+		}
+		return fmt.Errorf("connection check failed: %w", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+
+	fmt.Printf("  Test request: HTTP %s\n", resp.Status)
+	fmt.Println("Connection works.")
+	return nil
+}
+
+func clientCheckHint(err error) string {
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "authenticate"):
+		return "The PSK does not match the gateway. Ask the operator for the current key."
+	case strings.Contains(message, "certificate") || strings.Contains(message, "x509"):
+		return "The TLS certificate could not be verified. Check the server address, server name, and CA certificate."
+	case strings.Contains(message, "no such host"):
+		return "The server address could not be resolved. Check the spelling and your internet connection."
+	case strings.Contains(message, "timeout") || strings.Contains(message, "deadline exceeded"):
+		return "The gateway did not respond in time. Check the server address and that TCP 443 is open in the firewall and cloud security group."
+	case strings.Contains(message, "connect to ghost server") || strings.Contains(message, "connection refused") || strings.Contains(message, "connection reset"):
+		return "The gateway could not be reached. Check the server address and that TCP 443 is open in the firewall and cloud security group."
+	case strings.Contains(message, "destination") || strings.Contains(message, "not allowed"):
+		return "The gateway refused the test destination. If it has an allowed_destinations list, use --check-target with an allowed HTTP host:port."
+	default:
+		return ""
+	}
 }
 
 func isInteractive() bool {

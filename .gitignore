@@ -1,4 +1,9 @@
 
+# Release packaging output
+build/
+stage/
+dist/
+
 # Local TLS test credentials
 configs/server.crt
 configs/server.key

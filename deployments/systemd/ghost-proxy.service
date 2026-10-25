@@ -2,13 +2,17 @@
 Description=Ghost Proxy TLS gateway
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
 User=ghost-proxy
 Group=ghost-proxy
+WorkingDirectory=/etc/ghost-proxy
 EnvironmentFile=/etc/ghost-proxy/environment
-ExecStart=/opt/ghost-proxy/ghost-server -config /etc/ghost-proxy/server.yaml
+ExecStartPre=/opt/ghost-proxy/ghost-proxy-server --check --config /etc/ghost-proxy/server.yaml --env-file /etc/ghost-proxy/environment
+ExecStart=/opt/ghost-proxy/ghost-proxy-server --config /etc/ghost-proxy/server.yaml --env-file /etc/ghost-proxy/environment
 Restart=on-failure
 RestartSec=3
 AmbientCapabilities=CAP_NET_BIND_SERVICE
@@ -17,8 +21,11 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadOnlyPaths=/etc/letsencrypt/live /etc/letsencrypt/archive
-ReadWritePaths=/var/log/ghost-proxy
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
 
 [Install]
 WantedBy=multi-user.target

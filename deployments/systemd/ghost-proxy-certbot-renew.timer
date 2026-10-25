@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Ghost Proxy TLS certificate renewal
+Documentation=https://github.com/yedukrishna012/Ghost-Proxy
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

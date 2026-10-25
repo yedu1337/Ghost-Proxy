@@ -1,26 +1,64 @@
 GHOST PROXY SERVER - QUICK START
 ================================
 
-This package is for the machine that runs the gateway.
+RECOMMENDED: LINUX VPS
+A rented Linux server with a public IP address is the simplest way to run a
+gateway. You do not need a domain: the installer gets a free trusted
+certificate for the server's public IP address.
 
-1. Put your TLS certificate and private key in:
-      configs/server.crt
-      configs/server.key
-2. Create ghost.env in this folder containing one line:
-      GHOST_PSK=<64 hexadecimal characters>
-   You can generate a key with:
-      openssl rand -hex 32
-3. Start the gateway with the provided launcher:
-      Windows: double-click start-ghost-proxy-server.bat
-      Linux:   ./start-ghost-proxy-server.sh
-   The launcher reads ghost.env and runs the gateway on 0.0.0.0:443
-   (see configs/server.yaml).
-4. Allow TCP port 443 through your firewall and point your domain at this
-   machine.
-5. Give each user:
-      Server address: your-domain:443
-      PSK:            the key from ghost.env
-      server.crt:     only if you use a self-signed certificate
+Before you start:
+   - Allow inbound TCP 80 and 443 in your cloud firewall/security group
+     (for example, the AWS EC2 security group).
+   - Allow inbound SSH so you can log in.
 
-For certificate generation, systemd, Docker, Nginx decoy, and full server
-documentation, see the repository README.
+1. Download and extract GhostProxy-Server-Linux-x64.tar.gz on the server.
+2. Run:
+      cd GhostProxy-Server-Linux-x64
+      sudo ./install.sh
+
+   The installer asks for the public IP or domain. Press Enter to accept the
+   detected public IP. An email address is optional (Let's Encrypt expiry
+   notices).
+
+   It installs the gateway as a systemd service, obtains and renews the
+   certificate, and prints the invite text for your users.
+
+3. Copy the invite text and send it privately to each user. It is also saved at:
+      /etc/ghost-proxy/invite.txt
+
+Useful commands:
+   sudo systemctl status ghost-proxy
+   sudo systemctl restart ghost-proxy
+   sudo cat /etc/ghost-proxy/invite.txt
+   sudo ./install.sh --new-psk      # rotate the PSK after a leak
+   sudo ./install.sh                # upgrade; keeps the PSK and settings
+
+The gateway listens on TCP 443. Port 80 is used only for certificate issuance
+and renewal, so keep both ports open.
+
+USING A DOMAIN
+If you have a domain, point its DNS A/AAAA record at the server and run:
+   sudo ./install.sh --host proxy.example.com --email you@example.com
+
+WINDOWS SERVER (MANUAL)
+1. Unzip this folder.
+2. Double-click start-ghost-proxy-server.bat.
+3. The wizard asks for the public host/port, certificate, and PSK.
+   - Let's Encrypt certificates are easiest on the Linux installer.
+   - For a self-signed certificate, send configs/server.crt to each user and
+     have them enter its path in the client wizard.
+4. Forward TCP 443 on your router to this computer, and give users:
+      Server address: your-public-ip-or-domain:443
+      PSK:            the key printed by the wizard
+
+Use "GhostProxy Server Settings.bat" to change settings later.
+
+SECURITY
+   - The PSK is shared by all users. Anyone with it can use the gateway.
+   - Never post the PSK or the invite publicly.
+   - Keep /etc/ghost-proxy/environment and ghost.env private.
+   - On Linux, the installer creates an unprivileged service user and
+     restricts file permissions.
+
+Full documentation and troubleshooting:
+https://github.com/yedukrishna012/Ghost-Proxy

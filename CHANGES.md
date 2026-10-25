@@ -1,5 +1,64 @@
 # Ghost Proxy change summary
 
+## Operator bundle and connection check (2026-10-26)
+
+- Added a first-run server setup wizard. It asks for the public host and port,
+  selects or generates a TLS certificate, generates a PSK, and writes the
+  config, environment file, and a ready-to-send invite.
+- Added server commands: `--setup`, `--setup-only`, `--check`,
+  `--show-invite`, `--public-host`, `--public-port`, `--cert-file`,
+  `--key-file`, `--self-signed`, `--fallback-address`,
+  `--allowed-destinations`, `--psk`, `--force-psk`, `--force`,
+  `--non-interactive`, `--invite-file`, and `--env-file`.
+- Added a one-command Linux gateway installer. It supports a free Let's
+  Encrypt certificate for a **public IP address** (no domain), a domain
+  certificate, an existing certificate, or a self-signed certificate. It
+  installs Certbot 5.4 or newer in a private virtual environment, creates a
+  hardened systemd service, and enables daily certificate renewal. Reinstalls
+  keep the PSK, public port, fallback address, and destination rules, and keep
+  automatic renewal enabled. It picks a Python 3.10+ interpreter for Certbot
+  and adds Python 3.11 on Amazon Linux when needed.
+- Added automatic renewal plumbing: a filtered deploy hook and
+  `ghost-proxy-certbot-renew.timer`. The hook only copies the certificate for
+  this gateway, so renewing an unrelated certificate cannot replace it.
+- Added `--check` and `--check-target` to the client. The check makes a real
+  HTTP request through the tunnel and gives targeted hints for a wrong PSK,
+  certificate errors, DNS failures, timeouts, blocked destinations, and an
+  unreachable gateway.
+- Added client test launchers to the Windows and Linux packages.
+- Rewrote the README around two audiences: end users (download, setup, check,
+  browser) and operators (Linux VPS installer, IP certificate, domain option,
+  AWS/firewall guidance, service management, PSK rotation, troubleshooting).
+- Updated the release workflow and package contents for the installer,
+  systemd units, renewal hook, server settings launchers, and client test
+  launchers.
+- Added tests for the server wizard, invite generation, certificate
+  validation, PSK preservation/rotation, allowed destinations, and client
+  check hints.
+
+### Verification for this change
+
+- `gofmt -l .` — no output.
+- `go vet ./...` — passed.
+- `staticcheck ./...` (2026.2.2) — passed.
+- `go test ./... -count=1` — passed.
+- Cross-compiled Windows amd64 and Linux amd64 client and server binaries.
+- Simulated all four release packages from the extracted Linux server package,
+  checked archive contents and Windows CRLF line endings, and verified
+  `SHA256SUMS.txt`.
+- Ran the installer with `--dry-run` for a fresh public-IP certificate, a
+  Let's Encrypt-managed reinstall, a self-signed switch, a custom port, and
+  PSK rotation. The reinstall kept the existing port, fallback, public host,
+  and automatic renewal.
+- Ran the client `--check` end-to-end against a local gateway through a real
+  request to `example.com:80`; verified IPv4-SAN certificates, the wrong-PSK
+  hint, the untrusted-certificate hint, and the unreachable-gateway hint.
+- Verified the server wizard, `--check`, `--show-invite`, file permissions,
+  config generation, and PSK preservation/rotation locally.
+- Not tested against a live VPS or the Let's Encrypt production service:
+  no external server or domain was available. The installer fails with clear
+  guidance if port 80, DNS, or certificate validation is wrong.
+
 ## Guided client setup and downloadable packages (2026-10-25)
 
 - Added a first-run console wizard to the client. It asks for the gateway

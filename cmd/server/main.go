@@ -13,8 +13,11 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
+
+	"golang.org/x/term"
 
 	utls "github.com/refraction-networking/utls"
 
@@ -39,40 +42,154 @@ func exportServerKeyingMaterial(conn net.Conn) ([]byte, error) {
 }
 
 func main() {
-	if err := run(); err != nil {
-		logger.Error("server exited", "err", err)
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, "Ghost Proxy server error:", err)
+		if isInteractive() {
+			fmt.Fprintln(os.Stderr, "\nPress Enter to close...")
+			_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
+		}
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	cfgPath := flag.String("config", "configs/server.yaml", "path to server config")
-	listen := flag.String("listen", "", "override listen address from config")
-	flag.Parse()
+func isInteractive() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
 
-	cfg, err := config.Load(*cfgPath)
+func run(args []string) error {
+	flags := flag.NewFlagSet("GhostProxyServer", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+
+	configFlag := flags.String("config", "configs/server.yaml", "path to the server configuration file")
+	envFlag := flags.String("env-file", "ghost.env", "path to the GHOST_PSK environment file")
+	listen := flags.String("listen", "", "override the listen address from the config")
+	setupFlag := flags.Bool("setup", false, "run the setup wizard, then start the gateway")
+	setupOnly := flags.Bool("setup-only", false, "run the setup wizard and exit")
+	checkFlag := flags.Bool("check", false, "validate the configuration and exit")
+	showInvite := flags.Bool("show-invite", false, "print the details to send to users and exit")
+	publicHost := flags.String("public-host", "", "public host name or IP used by clients")
+	publicPort := flags.Int("public-port", 0, "public TCP port used by clients")
+	certFile := flags.String("cert-file", "", "TLS certificate chain path")
+	keyFile := flags.String("key-file", "", "TLS private key path")
+	selfSigned := flags.Bool("self-signed", false, "generate a self-signed certificate during setup")
+	fallback := flags.String("fallback-address", "", "fallback HTTP decoy address (host:port or none)")
+	allowed := flags.String("allowed-destinations", "", "comma-separated allowed hosts or CIDRs (blank = all public destinations)")
+	psk := flags.String("psk", "", "PSK in hexadecimal (blank = keep existing or generate)")
+	forcePSK := flags.Bool("force-psk", false, "generate a new PSK during setup instead of keeping the existing one")
+	force := flags.Bool("force", false, "replace existing certificate files during setup")
+	nonInteractive := flags.Bool("non-interactive", false, "never prompt; use flags and defaults")
+	inviteFile := flags.String("invite-file", "", "write the user invite text to this file")
+
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+
+	configPath, err := filepath.Abs(*configFlag)
+	if err != nil {
+		return fmt.Errorf("resolve config path: %w", err)
+	}
+	envPath, err := filepath.Abs(*envFlag)
+	if err != nil {
+		return fmt.Errorf("resolve env path: %w", err)
+	}
+
+	if err := loadServerEnvFile(envPath); err != nil {
+		return fmt.Errorf("read %s: %w", envPath, err)
+	}
+
+	_, configErr := config.Load(configPath)
+	configExists := configErr == nil
+	if configErr != nil && !errors.Is(configErr, os.ErrNotExist) {
+		return configErr
+	}
+
+	setupRequested := *setupFlag || *setupOnly
+	pskMissing := os.Getenv("GHOST_PSK") == ""
+	needsSetup := setupRequested
+
+	if !needsSetup {
+		switch {
+		case !configExists:
+			if isInteractive() && !*checkFlag && !*showInvite {
+				needsSetup = true
+			} else {
+				return fmt.Errorf("no usable configuration found at %s; run with --setup", configPath)
+			}
+		case pskMissing:
+			if isInteractive() && !*checkFlag && !*showInvite {
+				needsSetup = true
+			} else {
+				return fmt.Errorf("GHOST_PSK is not set; add it to %s or run with --setup", envPath)
+			}
+		}
+	}
+
+	if needsSetup {
+		opts := serverSetupOptions{
+			ConfigPath:     configPath,
+			EnvPath:        envPath,
+			PublicHost:     *publicHost,
+			Port:           *publicPort,
+			CertFile:       *certFile,
+			KeyFile:        *keyFile,
+			Fallback:       *fallback,
+			Allowed:        *allowed,
+			PSK:            *psk,
+			ForcePSK:       *forcePSK,
+			SelfSigned:     *selfSigned,
+			Force:          *force,
+			NonInteractive: *nonInteractive,
+			InviteFile:     *inviteFile,
+		}
+		result, err := runServerSetup(opts, newServerSetupUI(os.Stdin, os.Stdout))
+		if err != nil {
+			return err
+		}
+		if *setupOnly {
+			fmt.Println()
+			fmt.Println("Settings saved. Start the gateway with the same command without --setup-only.")
+			return nil
+		}
+		fmt.Println()
+		fmt.Printf("Starting the gateway on %s.\n", result.Config.ListenAddress)
+	}
+
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
 	}
-	logger.SetLevel(cfg.LogLevel)
+
+	if *showInvite {
+		return printServerInvite(cfg, os.Stdout)
+	}
+
 	if *listen != "" {
 		cfg.ListenAddress = *listen
 	}
-	if cfg.ListenAddress == "" {
-		return errors.New("no listen address configured")
-	}
-	pskHex := os.Getenv("GHOST_PSK")
-	if pskHex == "" {
-		return errors.New("GHOST_PSK must be set")
+
+	if *checkFlag {
+		return checkServerConfiguration(cfg, configPath, envPath, os.Stdout)
 	}
 
-	psk, err := hex.DecodeString(pskHex)
+	// Validate before starting so service managers show a clear error instead
+	// of a partial startup.
+	if err := checkServerConfiguration(cfg, configPath, envPath, io.Discard); err != nil {
+		return err
+	}
+
+	logger.SetLevel(cfg.LogLevel)
+
+	pskHex := os.Getenv("GHOST_PSK")
+	pskBytes, err := hex.DecodeString(pskHex)
 	if err != nil {
 		return fmt.Errorf("decode GHOST_PSK: %w", err)
 	}
 
-	if len(psk) < minPSKLen {
-		return errors.New("GHOST_PSK must decode to at least 16 bytes")
+	if len(pskBytes) < minPSKLen {
+		return fmt.Errorf("GHOST_PSK must decode to at least %d bytes", minPSKLen)
 	}
 
 	tlsConfig, err := transport.TLSServerConfig(cfg.CertFile, cfg.KeyFile)
@@ -119,7 +236,7 @@ func run() error {
 	}()
 
 	srv := &gateway.Server{
-		PSK:      []byte(psk),
+		PSK:      []byte(pskBytes),
 		Exporter: exportServerKeyingMaterial,
 		Prepare: func(raw net.Conn) (net.Conn, error) {
 			return prepareGatewayTLS(raw, tlsConfig)

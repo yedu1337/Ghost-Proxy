@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew Ghost Proxy TLS certificate
+Documentation=https://github.com/yedukrishna012/Ghost-Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/certbot/bin/certbot renew --quiet

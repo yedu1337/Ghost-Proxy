@@ -17,6 +17,7 @@ type Config struct {
 	KeyFile             string   `yaml:"key_file"`
 	FallbackAddress     string   `yaml:"fallback_address"`
 	ServerName          string   `yaml:"server_name"`
+	PublicHost          string   `yaml:"public_host"`
 	CAFile              string   `yaml:"ca_file"`
 	AllowedDestinations []string `yaml:"allowed_destinations"`
 	PaddingEnabled      *bool    `yaml:"padding_enabled"`

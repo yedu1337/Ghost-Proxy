@@ -39,9 +39,10 @@ jobs:
           mkdir -p stage/windows-client
           cp build/windows/GhostProxy.exe stage/windows-client/
           cp "packaging/windows/GhostProxy Settings.bat" stage/windows-client/
+          cp "packaging/windows/Test Ghost Proxy.bat" stage/windows-client/
           cp packaging/windows/README.txt stage/windows-client/README.txt
           cp LICENSE stage/windows-client/LICENSE.txt
-          sed -i 's/$/\r/' stage/windows-client/README.txt stage/windows-client/"GhostProxy Settings.bat"
+          sed -i 's/$/\r/' stage/windows-client/README.txt stage/windows-client/"GhostProxy Settings.bat" stage/windows-client/"Test Ghost Proxy.bat"
           (cd stage/windows-client && zip -qr ../../dist/GhostProxy-Client-Windows-x64.zip .)
 
           echo "Packaging Windows server..."
@@ -49,10 +50,11 @@ jobs:
           cp build/windows/GhostProxy-Server.exe stage/windows-server/
           cp configs/server.yaml stage/windows-server/configs/
           cp packaging/server/start-ghost-proxy-server.bat stage/windows-server/
+          cp "packaging/server/GhostProxy Server Settings.bat" stage/windows-server/
           cp packaging/server/README.txt stage/windows-server/README.txt
           cp packaging/server/ghost.env.example stage/windows-server/ghost.env.example
           cp LICENSE stage/windows-server/LICENSE.txt
-          sed -i 's/$/\r/' stage/windows-server/README.txt stage/windows-server/ghost.env.example stage/windows-server/start-ghost-proxy-server.bat
+          sed -i 's/$/\r/' stage/windows-server/README.txt stage/windows-server/ghost.env.example stage/windows-server/start-ghost-proxy-server.bat stage/windows-server/"GhostProxy Server Settings.bat"
           (cd stage/windows-server && zip -qr ../../dist/GhostProxy-Server-Windows-x64.zip .)
 
           echo "Packaging Linux client..."
@@ -60,6 +62,7 @@ jobs:
           cp build/linux/GhostProxy stage/linux-client/ghost-proxy
           cp packaging/linux/start-ghost-proxy.sh stage/linux-client/
           cp packaging/linux/ghost-proxy-settings.sh stage/linux-client/
+          cp packaging/linux/test-ghost-proxy.sh stage/linux-client/
           cp packaging/linux/README.txt stage/linux-client/README.txt
           cp LICENSE stage/linux-client/LICENSE.txt
           chmod +x stage/linux-client/ghost-proxy stage/linux-client/*.sh
@@ -70,10 +73,16 @@ jobs:
           cp build/linux/ghost-proxy-server stage/linux-server/
           cp configs/server.yaml stage/linux-server/configs/
           cp packaging/server/start-ghost-proxy-server.sh stage/linux-server/
+          cp packaging/server/ghost-proxy-server-settings.sh stage/linux-server/
           cp packaging/server/README.txt stage/linux-server/README.txt
           cp packaging/server/ghost.env.example stage/linux-server/ghost.env.example
+          cp deployments/systemd/install.sh stage/linux-server/
+          cp deployments/systemd/ghost-proxy.service stage/linux-server/
+          cp deployments/systemd/certbot-deploy-hook.sh stage/linux-server/
+          cp deployments/systemd/ghost-proxy-certbot-renew.service stage/linux-server/
+          cp deployments/systemd/ghost-proxy-certbot-renew.timer stage/linux-server/
           cp LICENSE stage/linux-server/LICENSE.txt
-          chmod +x stage/linux-server/ghost-proxy-server stage/linux-server/start-ghost-proxy-server.sh
+          chmod +x stage/linux-server/ghost-proxy-server stage/linux-server/*.sh
           tar -C stage/linux-server -czf dist/GhostProxy-Server-Linux-x64.tar.gz .
 
           echo "Writing checksums..."
@@ -113,10 +122,15 @@ jobs:
             - Windows: `GhostProxy-Server-Windows-x64.zip`
             - Linux: `GhostProxy-Server-Linux-x64.tar.gz`
 
+            **Linux gateway (recommended):** extract the Linux server package and
+            run `sudo ./install.sh`. It can get a free trusted Let's Encrypt
+            certificate for a public IP address, so no domain is required.
+
             Verify downloads with `SHA256SUMS.txt`.
 
             The client asks for the server address, CA certificate (if needed),
-            and PSK on first run. See the README inside each package.
+            and PSK on first run. Use `--check` or the included test launcher
+            to verify the connection. See the README inside each package.
 
             These builds are not code-signed. Windows SmartScreen may ask you
             to confirm before running the client.

@@ -137,13 +137,41 @@ func runSetup(cfgPath, envPath string, ui *setupUI) error {
 	}
 
 	defaultCA := existingCAPath(cfgPath, existing.CAFile)
-	caInput, err := ui.ask("CA certificate path (blank = system trust, type none to clear)", defaultCA)
-	if err != nil {
-		return err
-	}
-	caPath := caInput
-	if strings.EqualFold(caPath, "none") || caPath == "-" {
-		caPath = ""
+	caRelative := ""
+	for {
+		caInput, err := ui.ask("CA certificate path (blank = system trust, type none to clear)", defaultCA)
+		if err != nil {
+			return err
+		}
+		caPath := strings.TrimSpace(caInput)
+		if caPath == "" || caPath == "-" || strings.EqualFold(caPath, "none") {
+			break
+		}
+
+		source, err := expandPath(caPath)
+		if err != nil {
+			fmt.Fprintf(ui.out, "  %v\n", err)
+			continue
+		}
+		certPEM, err := os.ReadFile(source)
+		if err != nil {
+			fmt.Fprintf(ui.out, "  Could not read the CA certificate: %v\n", err)
+			continue
+		}
+		if err := validateCertificatePEM(certPEM); err != nil {
+			fmt.Fprintf(ui.out, "  %v\n", err)
+			continue
+		}
+
+		destination := filepath.Join(filepath.Dir(cfgPath), "server.crt")
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			return fmt.Errorf("create config directory: %w (move Ghost Proxy to a folder you can write to, such as Desktop or Documents)", err)
+		}
+		if err := os.WriteFile(destination, certPEM, 0o644); err != nil {
+			return fmt.Errorf("save CA certificate: %w (move Ghost Proxy to a folder you can write to, such as Desktop or Documents)", err)
+		}
+		caRelative = "server.crt"
+		break
 	}
 
 	psk := currentPSK
@@ -170,30 +198,6 @@ func runSetup(cfgPath, envPath string, ui *setupUI) error {
 		}
 		psk = value
 		break
-	}
-
-	caRelative := ""
-	if caPath != "" {
-		source, err := expandPath(caPath)
-		if err != nil {
-			return err
-		}
-		certPEM, err := os.ReadFile(source)
-		if err != nil {
-			return fmt.Errorf("read CA certificate: %w", err)
-		}
-		if err := validateCertificatePEM(certPEM); err != nil {
-			return err
-		}
-
-		destination := filepath.Join(filepath.Dir(cfgPath), "server.crt")
-		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-			return fmt.Errorf("create config directory: %w (move Ghost Proxy to a folder you can write to, such as Desktop or Documents)", err)
-		}
-		if err := os.WriteFile(destination, certPEM, 0o644); err != nil {
-			return fmt.Errorf("save CA certificate: %w", err)
-		}
-		caRelative = "server.crt"
 	}
 
 	cfg := clientConfigFile{

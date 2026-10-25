@@ -10,13 +10,6 @@ if [ -f ./ghost.env ]; then
   set +a
 fi
 
-if [ -z "${GHOST_PSK:-}" ]; then
-  echo "GHOST_PSK is not set."
-  echo "Create ghost.env in this folder containing one line:"
-  echo "  GHOST_PSK=your64characterhexkey"
-  exit 1
-fi
-
 if [ ! -x ./ghost-proxy-server ]; then
   echo "ghost-proxy-server was not found or is not executable in $(pwd)."
   exit 1
