@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+
+      - name: Build packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf build pkg dist
+          mkdir -p build/windows build/linux pkg dist
+
+          echo "Building Windows binaries..."
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/windows/GhostProxy.exe ./cmd/client
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/windows/GhostProxy-Server.exe ./cmd/server
+
+          echo "Building Linux binaries..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/linux/GhostProxy ./cmd/client
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/linux/ghost-proxy-server ./cmd/server
+
+          echo "Packaging Windows client..."
+          mkdir -p pkg/windows-client
+          cp build/windows/GhostProxy.exe pkg/windows-client/
+          cp "packaging/windows/GhostProxy Settings.bat" pkg/windows-client/
+          cp packaging/windows/README.txt pkg/windows-client/README.txt
+          cp LICENSE pkg/windows-client/LICENSE.txt
+          sed -i 's/$/\r/' pkg/windows-client/README.txt pkg/windows-client/"GhostProxy Settings.bat"
+          (cd pkg/windows-client && zip -qr ../../dist/GhostProxy-Client-Windows-x64.zip .)
+
+          echo "Packaging Windows server..."
+          mkdir -p pkg/windows-server/configs
+          cp build/windows/GhostProxy-Server.exe pkg/windows-server/
+          cp configs/server.yaml pkg/windows-server/configs/
+          cp packaging/server/start-ghost-proxy-server.bat pkg/windows-server/
+          cp packaging/server/README.txt pkg/windows-server/README.txt
+          cp packaging/server/ghost.env.example pkg/windows-server/ghost.env.example
+          cp LICENSE pkg/windows-server/LICENSE.txt
+          sed -i 's/$/\r/' pkg/windows-server/README.txt pkg/windows-server/ghost.env.example pkg/windows-server/start-ghost-proxy-server.bat
+          (cd pkg/windows-server && zip -qr ../../dist/GhostProxy-Server-Windows-x64.zip .)
+
+          echo "Packaging Linux client..."
+          mkdir -p pkg/linux-client
+          cp build/linux/GhostProxy pkg/linux-client/ghost-proxy
+          cp packaging/linux/start-ghost-proxy.sh pkg/linux-client/
+          cp packaging/linux/ghost-proxy-settings.sh pkg/linux-client/
+          cp packaging/linux/README.txt pkg/linux-client/README.txt
+          cp LICENSE pkg/linux-client/LICENSE.txt
+          chmod +x pkg/linux-client/ghost-proxy pkg/linux-client/*.sh
+          tar -C pkg/linux-client -czf dist/GhostProxy-Client-Linux-x64.tar.gz .
+
+          echo "Packaging Linux server..."
+          mkdir -p pkg/linux-server/configs
+          cp build/linux/ghost-proxy-server pkg/linux-server/
+          cp configs/server.yaml pkg/linux-server/configs/
+          cp packaging/server/start-ghost-proxy-server.sh pkg/linux-server/
+          cp packaging/server/README.txt pkg/linux-server/README.txt
+          cp packaging/server/ghost.env.example pkg/linux-server/ghost.env.example
+          cp LICENSE pkg/linux-server/LICENSE.txt
+          chmod +x pkg/linux-server/ghost-proxy-server pkg/linux-server/start-ghost-proxy-server.sh
+          tar -C pkg/linux-server -czf dist/GhostProxy-Server-Linux-x64.tar.gz .
+
+          echo "Writing checksums..."
+          (cd dist && sha256sum *.zip *.tar.gz > SHA256SUMS.txt)
+
+          ls -lh dist
+
+      - name: Upload release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-files
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@v4
+        with:
+          name: release-files
+          path: dist
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Ghost Proxy ${{ github.ref_name }}
+          body: |
+            ## Downloads
+
+            **End users (client only):**
+            - Windows: `GhostProxy-Client-Windows-x64.zip`
+            - Linux: `GhostProxy-Client-Linux-x64.tar.gz`
+
+            **Server operators:**
+            - Windows: `GhostProxy-Server-Windows-x64.zip`
+            - Linux: `GhostProxy-Server-Linux-x64.tar.gz`
+
+            Verify downloads with `SHA256SUMS.txt`.
+
+            The client asks for the server address, CA certificate (if needed),
+            and PSK on first run. See the README inside each package.
+
+            These builds are not code-signed. Windows SmartScreen may ask you
+            to confirm before running the client.
+          files: dist/*

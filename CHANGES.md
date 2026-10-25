@@ -1,5 +1,30 @@
 # Ghost Proxy change summary
 
+## Guided client setup and downloadable packages (2026-10-25)
+
+- Added a first-run console wizard to the client. It asks for the gateway
+  address, TLS server name, optional CA certificate, and PSK, then writes
+  `configs/client.yaml` and a git-ignored `ghost.env`.
+- Added `--setup` to reconfigure before starting and `--setup-only` to change
+  settings without starting the proxy.
+- Added Windows and Linux client and server packages with launchers and
+  user-focused quick-start files.
+- Added a tag-driven release workflow that builds Windows and Linux packages
+  and publishes them with `SHA256SUMS.txt`.
+- Updated the README with a no-command client quick start, browser
+  instructions, troubleshooting, and a server-operator quick start.
+- Added unit tests for address normalization, PSK validation, environment
+  loading, and wizard output.
+
+### Verification for this change
+
+- `go test ./... -count=1` — passed.
+- `go vet ./...` — passed.
+- `gofmt -l .` — no output.
+- Cross-compiled Windows amd64 and Linux amd64 client and server binaries.
+- End-to-end test with the packaged Linux client and server, a self-signed
+  certificate, and a SOCKS5 request to `https://example.com` — HTTP 200.
+
 ## Synopsis gap closure (2026-10-04)
 
 - Added loopback-only, opt-in pprof for the gateway and configuration checks
