@@ -2,7 +2,7 @@
 
 Ghost Proxy is a Go-based SOCKS5 proxy system that establishes an authenticated encrypted connection between a local client and a gateway. The gateway validates the session and forwards the requested TCP connection to a controlled destination.
 
-## 🚀 Use Ghost Proxy (no commands)
+## Use Ghost Proxy (no commands)
 
 Download the latest package from **[Releases](https://github.com/yedukrishna012/Ghost-Proxy/releases/latest)**:
 
@@ -40,11 +40,11 @@ The wizard remembers your previous answers. Press Enter to keep a value.
 
 ### Notes
 
-- **What is a server address?** It is the public address of the gateway you connect through. It cannot be included in the download because it depends on who operates the service. If you are the operator, see [server operator quick start](#-server-operator-quick-start).
+- **What is a server address?** It is the public address of the gateway you connect through. It cannot be included in the download because it depends on who operates the service. If you are the operator, see [server operator quick start](#server-operator-quick-start).
 - Windows builds are not code-signed, so SmartScreen may show a warning. Choose **More info → Run anyway**.
 - Never share your PSK or `ghost.env` file.
 
-## 🖥️ Server operator quick start
+## Server operator quick start
 
 End users only need the client package. The gateway needs a machine with a public IP address or domain, a TLS certificate, and TCP port 443 open.
 
