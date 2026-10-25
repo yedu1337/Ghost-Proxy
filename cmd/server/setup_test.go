@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -196,17 +197,19 @@ func TestRunServerSetupSelfSigned(t *testing.T) {
 		}
 	}
 
-	if mode := fileMode(t, envPath); mode != 0o600 {
-		t.Fatalf("environment mode = %o, want 600", mode)
-	}
-	if mode := fileMode(t, cfg.KeyFile); mode != 0o600 {
-		t.Fatalf("private key mode = %o, want 600", mode)
-	}
-	if mode := fileMode(t, invitePath); mode != 0o600 {
-		t.Fatalf("invite mode = %o, want 600", mode)
-	}
-	if mode := fileMode(t, cfg.CertFile); mode != 0o644 {
-		t.Fatalf("certificate mode = %o, want 644", mode)
+	if runtime.GOOS != "windows" {
+		if mode := fileMode(t, envPath); mode != 0o600 {
+			t.Fatalf("environment mode = %o, want 600", mode)
+		}
+		if mode := fileMode(t, cfg.KeyFile); mode != 0o600 {
+			t.Fatalf("private key mode = %o, want 600", mode)
+		}
+		if mode := fileMode(t, invitePath); mode != 0o600 {
+			t.Fatalf("invite mode = %o, want 600", mode)
+		}
+		if mode := fileMode(t, cfg.CertFile); mode != 0o644 {
+			t.Fatalf("certificate mode = %o, want 644", mode)
+		}
 	}
 
 	invite, err := os.ReadFile(invitePath)
