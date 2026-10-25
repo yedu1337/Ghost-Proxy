@@ -1,5 +1,12 @@
 # Ghost Proxy change summary
 
+## Documentation fix (2026-10-26)
+
+- Corrected the Linux server package instructions. The archive extracts its
+  files directly, so the docs now say to extract into an empty folder and run
+  `sudo ./install.sh` there, with no `cd` into a non-existent directory.
+- Added the direct server package download command to the README.
+
 ## Operator bundle and connection check (2026-10-26)
 
 - Added a first-run server setup wizard. It asks for the public host and port,

@@ -3,10 +3,15 @@
 The easiest path is the Linux server package installer:
 
 ```bash
+mkdir -p ghost-proxy-server
+cd ghost-proxy-server
+curl -LO https://github.com/yedukrishna012/Ghost-Proxy/releases/latest/download/GhostProxy-Server-Linux-x64.tar.gz
 tar -xzf GhostProxy-Server-Linux-x64.tar.gz
-cd GhostProxy-Server-Linux-x64
 sudo ./install.sh
 ```
+
+The archive extracts its files directly, so run the installer from that same
+folder; there is no inner `GhostProxy-Server-Linux-x64` directory.
 
 It creates the `ghost-proxy` user, installs the binary at
 `/opt/ghost-proxy/ghost-proxy-server`, writes `/etc/ghost-proxy/server.yaml`

@@ -114,14 +114,20 @@ is:
    - Port 443 carries the gateway.
    - Port 80 is used by Let's Encrypt for issuance and renewal. Keep it open.
    - Keep SSH (usually port 22) open so you can log in.
-3. **Download and extract** `GhostProxy-Server-Linux-x64.tar.gz` on the
-   server, then run the installer:
+3. **Download and extract** the server package into its own folder, then run
+   the installer:
 
    ```bash
+   mkdir -p ghost-proxy-server
+   cd ghost-proxy-server
+   curl -LO https://github.com/yedukrishna012/Ghost-Proxy/releases/latest/download/GhostProxy-Server-Linux-x64.tar.gz
    tar -xzf GhostProxy-Server-Linux-x64.tar.gz
-   cd GhostProxy-Server-Linux-x64
    sudo ./install.sh
    ```
+
+   If you downloaded the package another way, extract it into an empty folder
+   and run `sudo ./install.sh` from that folder. The archive extracts its files
+   directly, so there is no inner `GhostProxy-Server-Linux-x64` directory.
 
    The installer detects the server's public IP and offers it as the default.
    Press Enter to accept it. A domain is **not** required. An email address is
@@ -205,18 +211,22 @@ sudo /opt/ghost-proxy/ghost-proxy-server --check \
 
 **Rotate the shared PSK** after a leak or when someone leaves:
 
+Run this from the folder where you extracted the server package:
+
 ```bash
-cd GhostProxy-Server-Linux-x64
 sudo ./install.sh --new-psk
 ```
+
+If you no longer have that folder, download and extract the package again
+first.
 
 This generates a new key, restarts the gateway, and prints a new invite. Every
 user must update their client with the new key; the old key stops working when
 the gateway restarts. Send the new invite privately.
 
-**Upgrade the gateway:** download the new Linux server package, extract it,
-and run `sudo ./install.sh`. The installer keeps the PSK and existing settings,
-replaces the binary, and restarts the service.
+**Upgrade the gateway:** download the new Linux server package, extract it into
+a folder, and run `sudo ./install.sh` from that folder. The installer keeps the
+PSK and existing settings, replaces the binary, and restarts the service.
 
 ### AWS and firewall examples
 

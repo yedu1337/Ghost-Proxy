@@ -11,10 +11,12 @@ Before you start:
      (for example, the AWS EC2 security group).
    - Allow inbound SSH so you can log in.
 
-1. Download and extract GhostProxy-Server-Linux-x64.tar.gz on the server.
-2. Run:
-      cd GhostProxy-Server-Linux-x64
+1. Download GhostProxy-Server-Linux-x64.tar.gz and extract it into an empty
+   folder on the server.
+2. Open a terminal in that folder and run:
       sudo ./install.sh
+
+   The archive extracts its files directly; there is no inner folder.
 
    The installer asks for the public IP or domain. Press Enter to accept the
    detected public IP. An email address is optional (Let's Encrypt expiry
@@ -30,6 +32,8 @@ Useful commands:
    sudo systemctl status ghost-proxy
    sudo systemctl restart ghost-proxy
    sudo cat /etc/ghost-proxy/invite.txt
+
+From the extracted package folder:
    sudo ./install.sh --new-psk      # rotate the PSK after a leak
    sudo ./install.sh                # upgrade; keeps the PSK and settings
 
