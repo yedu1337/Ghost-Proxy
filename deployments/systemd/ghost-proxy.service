@@ -1,0 +1,24 @@
+[Unit]
+Description=Ghost Proxy TLS gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ghost-proxy
+Group=ghost-proxy
+EnvironmentFile=/etc/ghost-proxy/environment
+ExecStart=/opt/ghost-proxy/ghost-server -config /etc/ghost-proxy/server.yaml
+Restart=on-failure
+RestartSec=3
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/letsencrypt/live /etc/letsencrypt/archive
+ReadWritePaths=/var/log/ghost-proxy
+
+[Install]
+WantedBy=multi-user.target

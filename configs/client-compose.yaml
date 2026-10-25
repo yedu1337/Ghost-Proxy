@@ -1,0 +1,8 @@
+listen_address: "0.0.0.0:1080"
+allow_remote_bind: true
+server_address: "server:8443"
+server_name: "localhost"
+ca_file: "/app/configs/server.crt"
+log_level: "info"
+padding_enabled: true
+jitter_ms: 0

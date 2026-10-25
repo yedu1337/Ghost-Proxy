@@ -1,0 +1,36 @@
+services:
+  nginx:
+    build:
+      context: ../deployments/nginx
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ../
+      dockerfile: deployments/server/Dockerfile
+    environment:
+      GHOST_PSK: ${GHOST_PSK:?Set GHOST_PSK to 32+ hexadecimal characters}
+    volumes:
+      - ../configs/server-compose.yaml:/app/configs/server.yaml:ro
+      - ../configs/server.crt:/app/configs/server.crt:ro
+      - ../configs/server.key:/app/configs/server.key:ro
+    ports:
+      - "443:8443"
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ../
+      dockerfile: deployments/client/Dockerfile
+    environment:
+      GHOST_PSK: ${GHOST_PSK:?Set GHOST_PSK to 32+ hexadecimal characters}
+    volumes:
+      - ../configs/client-compose.yaml:/app/configs/client.yaml:ro
+      - ../configs/server.crt:/app/configs/server.crt:ro
+    ports:
+      - "127.0.0.1:1080:1080"
+    depends_on:
+      - server
+    restart: unless-stopped

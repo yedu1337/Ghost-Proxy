@@ -1,0 +1,8 @@
+listen_address: "127.0.0.1:1080"
+server_address: "127.0.0.1:443"
+server_name: "localhost"
+ca_file: "server.crt"
+log_level: "info"
+fallback_address: ""
+padding_enabled: true
+jitter_ms: 0

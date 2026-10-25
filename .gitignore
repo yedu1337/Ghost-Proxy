@@ -1,0 +1,9 @@
+
+# Local TLS test credentials
+configs/server.crt
+configs/server.key
+ghost-server
+ghost-client
+*.exe
+.env
+ghost.env
