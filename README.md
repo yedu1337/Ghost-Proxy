@@ -159,15 +159,25 @@ The repository includes launcher scripts for simplified local client/server test
 |---|---|
 | `Start_server.SH` | Starts `ghost-server` on `127.0.0.1:8443` |
 | `Start_client.SH` | Starts `ghost-client` |
+| `start-server.bat` | Starts `ghost-server` on Windows |
 | `start-client.bat` | Starts `ghost-client` on Windows |
 
 ### 1. Build
 
 From the repository root:
 
+Linux/macOS:
+
 ```bash
 go build -o ghost-server ./cmd/server
 go build -o ghost-client ./cmd/client
+```
+
+Windows (PowerShell or Command Prompt):
+
+```powershell
+go build -o ghost-server.exe ./cmd/server
+go build -o ghost-client.exe ./cmd/client
 ```
 
 ### 2. Create `ghost.env`
@@ -199,8 +209,8 @@ bash ./Start_server.SH
 
 Windows:
 
-```powershell
-.\ghost-server.exe -listen 127.0.0.1:8443
+```bat
+start-server.bat
 ```
 
 ### 5. Start the client
@@ -316,6 +326,7 @@ For the existing Nginx setup notes, see `docs/nginx-decoy-setup.md`.
 - `configs/server.yaml` — server configuration
 - `Start_server.SH` — local server launcher
 - `Start_client.SH` — local client launcher
+- `start-server.bat` — Windows server launcher
 - `start-client.bat` — Windows client launcher
 
 ## Performance profiling
@@ -384,4 +395,6 @@ Open a pull request against `main`.
 
 ## License
 
-See [LICENSE](LICENSE).
+Released under the MIT License. See [LICENSE](LICENSE) for details.
+
+Copyright (c) 2026 Yedukrishna R (@yedukrishna012)

@@ -4,6 +4,8 @@ configs/server.crt
 configs/server.key
 ghost-server
 ghost-client
+/client
+/server
 *.exe
 .env
 ghost.env
